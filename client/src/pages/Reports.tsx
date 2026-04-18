@@ -173,7 +173,16 @@ export default function Reports() {
                 <p className="text-slate-500 text-xs mb-4">Distribuição dos registros</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
-                    <Pie data={chart?.tempDistribution?.filter((d: any) => d.count > 0)} cx="50%" cy="50%" outerRadius={70} dataKey="count" nameKey="range" label={({ range, percent }) => percent > 0 ? `${(percent * 100).toFixed(0)}%` : ""} labelLine={false}>
+                    <Pie 
+                      data={chart?.tempDistribution?.filter((d: any) => d.count > 0)} 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={70} 
+                      dataKey="count" 
+                      nameKey="range" 
+                      label={({ percent, name }: any) => (percent && percent > 0) ? `${(percent * 100).toFixed(0)}%` : name} 
+                      labelLine={false}
+                    >
                       {chart?.tempDistribution?.map((_: any, i: number) => (
                         <Cell key={i} fill={COLORS_TEMP[i % COLORS_TEMP.length]} />
                       ))}
@@ -192,7 +201,16 @@ export default function Reports() {
                 <p className="text-slate-500 text-xs mb-4">Qualidade da água</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
-                    <Pie data={chart?.phDistribution?.filter((d: any) => d.count > 0)} cx="50%" cy="50%" outerRadius={70} dataKey="count" nameKey="range" label={({ percent }) => percent > 0 ? `${(percent * 100).toFixed(0)}%` : ""} labelLine={false}>
+                    <Pie 
+                      data={chart?.phDistribution?.filter((d: any) => d.count > 0)} 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={70} 
+                      dataKey="count" 
+                      nameKey="range" 
+                      label={({ percent, name }: any) => (percent && percent > 0) ? `${(percent * 100).toFixed(0)}%` : name} 
+                      labelLine={false}
+                    >
                       {chart?.phDistribution?.map((_: any, i: number) => (
                         <Cell key={i} fill={COLORS_PH[i % COLORS_PH.length]} />
                       ))}

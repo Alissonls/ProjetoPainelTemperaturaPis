@@ -15,12 +15,10 @@ function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNo
 }
 
 function App() {
-  const [auth, setAuth] = useState(!!localStorage.getItem("token"));
-
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login onLogin={() => setAuth(true)} />} />
+        <Route path="/login" element={<Login onLogin={() => {}} />} />
         <Route path="/panel" element={<Panel />} />
         <Route
           path="/"
