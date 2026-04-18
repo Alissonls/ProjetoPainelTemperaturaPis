@@ -38,7 +38,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json(record);
   } catch (err) {
-    console.error("[records/create]", err);
-    return res.status(500).json({ message: "Erro interno" });
+    console.error("[records/create] CRITICAL ERROR:", err);
+    console.error("[records/create] DATA:", { temperature, ph, userId: authUser.id });
+    return res.status(500).json({ message: "Erro interno: " + err.message });
   }
 }
