@@ -1,6 +1,6 @@
-import prisma from "../lib/prisma.js";
-import { setCors, handlePreflight, verifyAuth } from "../lib/helpers.js";
-import { broadcastRecord } from "../lib/pusher.js";
+import prisma from "../../lib/prisma.js";
+import { setCors, handlePreflight, verifyAuth } from "../../lib/helpers.js";
+import { broadcastRecord } from "../../lib/pusher.js";
 
 // POST /api/records — protegido (requer JWT)
 export default async function handler(req, res) {
