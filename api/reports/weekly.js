@@ -1,2 +1,2 @@
-import { weeklyHandler } from "../_lib/reports.js";
+import { weeklyHandler } from "../lib/reports.js";
 export default weeklyHandler;

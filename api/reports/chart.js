@@ -1,5 +1,5 @@
-import prisma from "../_lib/prisma.js";
-import { setCors, handlePreflight, verifyAuth, requireAdmin } from "../_lib/helpers.js";
+import prisma from "../lib/prisma.js";
+import { setCors, handlePreflight, verifyAuth, requireAdmin } from "../lib/helpers.js";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from "date-fns";
 
 export default async function handler(req, res) {
