@@ -10,6 +10,6 @@
     { "source": "/api/reports/weekly", "destination": "/api/reports/weekly" },
     { "source": "/api/reports/monthly", "destination": "/api/reports/monthly" },
     { "source": "/api/reports/chart", "destination": "/api/reports/chart" },
-    { "source": "/((?!api/).*)", "destination": "/client/dist/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
