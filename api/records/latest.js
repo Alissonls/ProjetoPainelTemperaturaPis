@@ -1,5 +1,5 @@
-import prisma from "../../_lib/prisma.js";
-import { setCors, handlePreflight } from "../../_lib/helpers.js";
+import prisma from "../_lib/prisma.js";
+import { setCors, handlePreflight } from "../_lib/helpers.js";
 
 // GET /api/records/latest — pública (painéis não precisam de token)
 export default async function handler(req, res) {
