@@ -3,7 +3,6 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Panel from "./pages/Panel";
 import Reports from "./pages/Reports";
-import { useState } from "react";
 
 function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const token = localStorage.getItem("token");
