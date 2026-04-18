@@ -9,30 +9,39 @@ const bcrypt = require("bcryptjs");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, "dev.db");
-
 const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const hashedPassword = await bcrypt.hash("admin123", 10);
-
-  const user = await prisma.user.upsert({
+  // Admin
+  await prisma.user.upsert({
     where: { username: "admin" },
     update: {},
     create: {
       username: "admin",
       name: "Administrador",
-      password: hashedPassword,
+      password: await bcrypt.hash("admin123", 10),
+      role: "admin",
     },
   });
 
-  console.log("✅ Usuário criado:", user.username);
-  console.log("   Login: admin | Senha: admin123");
+  // Operador de exemplo
+  await prisma.user.upsert({
+    where: { username: "operador1" },
+    update: {},
+    create: {
+      username: "operador1",
+      name: "João Silva",
+      password: await bcrypt.hash("op123", 10),
+      role: "operator",
+    },
+  });
+
+  console.log("✅ Usuários criados:");
+  console.log("   admin / admin123     → perfil ADMIN");
+  console.log("   operador1 / op123    → perfil OPERADOR");
 }
 
 main()
-  .catch((e) => {
-    console.error("❌ Erro no seed:", e.message);
-    process.exit(1);
-  })
+  .catch((e) => { console.error("❌", e.message); process.exit(1); })
   .finally(() => prisma.$disconnect());

@@ -1,0 +1,19 @@
+{
+  "name": "poolcontrol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "prisma generate && cd client && npm install && npm run build",
+    "postinstall": "prisma generate || true",
+    "seed": "node api/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^7",
+    "bcryptjs": "^3",
+    "date-fns": "^4",
+    "jsonwebtoken": "^9",
+    "prisma": "^7",
+    "pusher": "^5.2.0"
+  }
+}

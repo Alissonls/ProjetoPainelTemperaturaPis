@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/auth/login", "destination": "/api/auth/login" },
+    { "source": "/api/records/latest", "destination": "/api/records/latest" },
+    { "source": "/api/records", "destination": "/api/records/index" },
+    { "source": "/api/reports/weekly", "destination": "/api/reports/weekly" },
+    { "source": "/api/reports/monthly", "destination": "/api/reports/monthly" },
+    { "source": "/api/reports/chart", "destination": "/api/reports/chart" },
+    { "source": "/((?!api/).*)", "destination": "/client/dist/index.html" }
+  ]
+}

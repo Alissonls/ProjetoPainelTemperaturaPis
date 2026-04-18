@@ -1,0 +1,12 @@
+import { PrismaClient } from "@prisma/client";
+
+// Singleton para reutilizar conexão em funções serverless
+const globalForPrisma = globalThis;
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+
+export default prisma;

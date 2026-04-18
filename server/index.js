@@ -7,84 +7,69 @@ import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, subDays } from "date-fns";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, "dev.db");
-
-// ─── Prisma 7 Driver Adapter (obrigatório) ─────────────
 const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
 const prisma = new PrismaClient({ adapter });
 
-// ─── Fastify Setup ──────────────────────────────────────
 const fastify = Fastify({ logger: false });
 
 await fastify.register(cors, { origin: "*" });
 await fastify.register(jwt, { secret: "poolcontrol-secret-2024" });
 await fastify.register(websocket);
 
-// ─── WebSocket: Painéis conectados ─────────────────────
+// ─── WebSocket ─────────────────────────────────────────
 const clients = new Set();
 
 fastify.register(async (instance) => {
   instance.get("/ws", { websocket: true }, (socket) => {
     clients.add(socket);
-    console.log(`📺 Painel conectado. Total: ${clients.size}`);
-    socket.on("close", () => {
-      clients.delete(socket);
-      console.log(`📺 Painel desconectado. Total: ${clients.size}`);
-    });
+    socket.on("close", () => clients.delete(socket));
   });
 });
 
 const broadcast = (data) => {
-  const msg = JSON.stringify({ type: "NEW_TEMPERATURE", data });
+  const msg = JSON.stringify({ type: "NEW_RECORD", data });
   for (const s of clients) {
     if (s.readyState === 1) s.send(msg);
   }
 };
 
-// ─── Rota pública de login ──────────────────────────────
+// ─── LOGIN ─────────────────────────────────────────────
 fastify.post("/auth/login", async (request, reply) => {
   const { username, password } = request.body ?? {};
-  if (!username || !password) {
+  if (!username || !password)
     return reply.status(400).send({ message: "Usuário e senha são obrigatórios" });
-  }
 
   const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) {
-    return reply.status(401).send({ message: "Usuário não encontrado" });
-  }
-
-  const ok = await bcrypt.compare(password, user.password);
-  if (!ok) {
-    return reply.status(401).send({ message: "Senha incorreta" });
-  }
+  if (!user || !(await bcrypt.compare(password, user.password)))
+    return reply.status(401).send({ message: "Usuário ou senha inválidos" });
 
   const token = fastify.jwt.sign(
-    { id: user.id, name: user.name, username: user.username },
+    { id: user.id, name: user.name, username: user.username, role: user.role },
     { expiresIn: "8h" }
   );
-  return { token, user: { id: user.id, name: user.name, username: user.username } };
+  return { token, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
 });
 
-// ─── Rota pública: última temperatura (painéis) ─────────
-fastify.get("/temperature/latest", async () => {
-  return prisma.temperatureRecord.findFirst({
+// ─── ÚLTIMA LEITURA (pública) ──────────────────────────
+fastify.get("/records/latest", async () => {
+  return prisma.poolRecord.findFirst({
     orderBy: { createdAt: "desc" },
     include: { user: { select: { name: true } } },
   });
 });
 
-// ─── Middleware JWT (rotas protegidas) ──────────────────
-const PUBLIC_ROUTES = ["/auth/login", "/temperature/latest", "/ws"];
+// ─── AUTH HOOK ─────────────────────────────────────────
+const PUBLIC_ROUTES = ["/auth/login", "/records/latest", "/ws"];
 
 fastify.addHook("preHandler", async (request, reply) => {
-  const isPublic = PUBLIC_ROUTES.some((r) => request.url.startsWith(r));
-  if (isPublic || request.method === "OPTIONS") return;
+  if (PUBLIC_ROUTES.some((r) => request.url.startsWith(r)) || request.method === "OPTIONS") return;
   try {
     await request.jwtVerify();
   } catch {
@@ -92,15 +77,27 @@ fastify.addHook("preHandler", async (request, reply) => {
   }
 });
 
-// ─── Registrar temperatura (protegido) ─────────────────
-fastify.post("/temperature", async (request, reply) => {
-  const { value } = request.body ?? {};
-  if (value === undefined || value === null || value === "") {
-    return reply.status(400).send({ message: "Valor de temperatura é obrigatório" });
+// ─── HELPER: verifica se é admin ───────────────────────
+const requireAdmin = (request, reply) => {
+  if (request.user?.role !== "admin") {
+    reply.status(403).send({ message: "Acesso negado — perfil admin necessário" });
+    return false;
   }
+  return true;
+};
 
-  const record = await prisma.temperatureRecord.create({
-    data: { value: parseFloat(value), userId: request.user.id },
+// ─── REGISTRAR (operador e admin) ──────────────────────
+fastify.post("/records", async (request, reply) => {
+  const { temperature, ph } = request.body ?? {};
+  if (temperature === undefined || temperature === null || temperature === "")
+    return reply.status(400).send({ message: "Temperatura é obrigatória" });
+
+  const record = await prisma.poolRecord.create({
+    data: {
+      temperature: parseFloat(temperature),
+      ph: ph !== undefined && ph !== "" ? parseFloat(ph) : null,
+      userId: request.user.id,
+    },
     include: { user: { select: { name: true } } },
   });
 
@@ -108,10 +105,11 @@ fastify.post("/temperature", async (request, reply) => {
   return record;
 });
 
-// ─── Relatórios ─────────────────────────────────────────
-fastify.get("/reports/weekly", async () => {
+// ─── RELATÓRIOS (somente admin) ────────────────────────
+fastify.get("/reports/weekly", async (request, reply) => {
+  if (!requireAdmin(request, reply)) return;
   const now = new Date();
-  return prisma.temperatureRecord.findMany({
+  return prisma.poolRecord.findMany({
     where: {
       createdAt: {
         gte: startOfWeek(now, { weekStartsOn: 1 }),
@@ -123,17 +121,85 @@ fastify.get("/reports/weekly", async () => {
   });
 });
 
-fastify.get("/reports/monthly", async () => {
+fastify.get("/reports/monthly", async (request, reply) => {
+  if (!requireAdmin(request, reply)) return;
   const now = new Date();
-  return prisma.temperatureRecord.findMany({
+  return prisma.poolRecord.findMany({
     where: {
-      createdAt: { gte: startOfMonth(now), lte: endOfMonth(now) },
+      createdAt: {
+        gte: startOfMonth(now),
+        lte: endOfMonth(now),
+      },
     },
     include: { user: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
 });
 
-// ─── Start ──────────────────────────────────────────────
+// ─── DADOS DOS GRÁFICOS (somente admin) ────────────────
+fastify.get("/reports/chart", async (request, reply) => {
+  if (!requireAdmin(request, reply)) return;
+
+  const { period = "weekly" } = request.query;
+  const now = new Date();
+  const gte = period === "monthly" ? startOfMonth(now) : startOfWeek(now, { weekStartsOn: 1 });
+  const lte = period === "monthly" ? endOfMonth(now) : endOfWeek(now, { weekStartsOn: 1 });
+
+  const records = await prisma.poolRecord.findMany({
+    where: { createdAt: { gte, lte } },
+    include: { user: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Agrupamento por dia para gráfico de linha
+  const byDay = {};
+  for (const r of records) {
+    const day = format(new Date(r.createdAt), "dd/MM");
+    if (!byDay[day]) byDay[day] = { temps: [], phs: [], technicians: {} };
+    byDay[day].temps.push(r.temperature);
+    if (r.ph !== null) byDay[day].phs.push(r.ph);
+    byDay[day].technicians[r.user.name] = (byDay[day].technicians[r.user.name] || 0) + 1;
+  }
+
+  const timeline = Object.entries(byDay).map(([dia, val]) => ({
+    dia,
+    tempMedia: parseFloat((val.temps.reduce((a, b) => a + b, 0) / val.temps.length).toFixed(1)),
+    tempMax: Math.max(...val.temps),
+    tempMin: Math.min(...val.temps),
+    phMedio: val.phs.length ? parseFloat((val.phs.reduce((a, b) => a + b, 0) / val.phs.length).toFixed(2)) : null,
+    totalRegistros: val.temps.length,
+  }));
+
+  // Distribuição por técnico (para gráfico de pizza)
+  const techniciansCount = {};
+  for (const r of records) {
+    techniciansCount[r.user.name] = (techniciansCount[r.user.name] || 0) + 1;
+  }
+  const byTechnician = Object.entries(techniciansCount).map(([name, count]) => ({ name, count }));
+
+  // Distribuição de faixas de temperatura
+  const tempRanges = { "< 25°C": 0, "25–28°C": 0, "28–30°C": 0, "> 30°C": 0 };
+  for (const r of records) {
+    if (r.temperature < 25) tempRanges["< 25°C"]++;
+    else if (r.temperature < 28) tempRanges["25–28°C"]++;
+    else if (r.temperature <= 30) tempRanges["28–30°C"]++;
+    else tempRanges["> 30°C"]++;
+  }
+  const tempDistribution = Object.entries(tempRanges).map(([range, count]) => ({ range, count }));
+
+  // Distribuição de faixas de pH
+  const phRanges = { "Ácido (< 7.0)": 0, "Ideal (7.0–7.6)": 0, "Alcalino (> 7.6)": 0, "Sem registro": 0 };
+  for (const r of records) {
+    if (r.ph === null) phRanges["Sem registro"]++;
+    else if (r.ph < 7.0) phRanges["Ácido (< 7.0)"]++;
+    else if (r.ph <= 7.6) phRanges["Ideal (7.0–7.6)"]++;
+    else phRanges["Alcalino (> 7.6)"]++;
+  }
+  const phDistribution = Object.entries(phRanges).map(([range, count]) => ({ range, count }));
+
+  return { timeline, byTechnician, tempDistribution, phDistribution, total: records.length };
+});
+
+// ─── START ──────────────────────────────────────────────
 await fastify.listen({ port: 3001, host: "0.0.0.0" });
 console.log("✅ PoolControl Server → http://localhost:3001");
