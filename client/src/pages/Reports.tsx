@@ -30,7 +30,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const PERIOD_LABEL = { weekly: "Semana Atual", monthly: "Mês Atual" };
+const PERIOD_LABEL = { weekly: "Semana Atual", monthly: "Mês Atual", date: "Por Data" };
 
 export default function Reports() {
   const [period, setPeriod] = useState<"weekly" | "monthly" | "date">("weekly");

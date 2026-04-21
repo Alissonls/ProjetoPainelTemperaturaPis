@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Thermometer, Clock, User, Droplets } from "lucide-react";
+import { Thermometer, Clock, Droplets } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
