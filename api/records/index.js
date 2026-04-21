@@ -28,6 +28,7 @@ export default async function handler(req, res) {
       data: {
         temperature: parseFloat(temperature),
         ph: ph !== undefined && ph !== "" ? parseFloat(ph) : null,
+        cloro: req.body.cloro !== undefined && req.body.cloro !== "" ? parseFloat(req.body.cloro) : null,
         userId: authUser.id,
       },
       include: { user: { select: { name: true } } },

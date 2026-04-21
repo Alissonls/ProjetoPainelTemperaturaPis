@@ -9,7 +9,9 @@
     { "source": "/api/records", "destination": "/api/records/index" },
     { "source": "/api/reports/weekly", "destination": "/api/reports/weekly" },
     { "source": "/api/reports/monthly", "destination": "/api/reports/monthly" },
+    { "source": "/api/reports/date", "destination": "/api/reports/date" },
     { "source": "/api/reports/chart", "destination": "/api/reports/chart" },
+    { "source": "/api/users", "destination": "/api/users" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

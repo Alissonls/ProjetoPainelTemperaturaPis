@@ -30,9 +30,10 @@ export default async function handler(req, res) {
     const byDay = {};
     for (const r of records) {
       const day = format(new Date(r.createdAt), "dd/MM");
-      if (!byDay[day]) byDay[day] = { temps: [], phs: [] };
+      if (!byDay[day]) byDay[day] = { temps: [], phs: [], cloros: [] };
       byDay[day].temps.push(r.temperature);
       if (r.ph !== null) byDay[day].phs.push(r.ph);
+      if (r.cloro !== null) byDay[day].cloros.push(r.cloro);
     }
 
     const timeline = Object.entries(byDay).map(([dia, val]) => ({
@@ -42,6 +43,9 @@ export default async function handler(req, res) {
       tempMin: Math.min(...val.temps),
       phMedio: val.phs.length
         ? parseFloat((val.phs.reduce((a, b) => a + b, 0) / val.phs.length).toFixed(2))
+        : null,
+      cloroMedio: val.cloros.length
+        ? parseFloat((val.cloros.reduce((a, b) => a + b, 0) / val.cloros.length).toFixed(2))
         : null,
       totalRegistros: val.temps.length,
     }));
