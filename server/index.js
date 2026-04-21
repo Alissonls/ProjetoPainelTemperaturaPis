@@ -17,7 +17,7 @@ const dbPath = path.join(__dirname, "dev.db");
 const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
 const prisma = new PrismaClient({ adapter });
 
-const fastify = Fastify({ logger: false });
+const fastify = Fastify({ logger: true });
 
 await fastify.register(cors, { origin: "*" });
 await fastify.register(jwt, { secret: "poolcontrol-secret-2024" });
