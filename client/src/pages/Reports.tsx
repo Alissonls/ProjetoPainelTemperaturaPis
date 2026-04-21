@@ -33,10 +33,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const PERIOD_LABEL = { weekly: "Semana Atual", monthly: "Mês Atual" };
 
 export default function Reports() {
-  const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
+  const [period, setPeriod] = useState<"weekly" | "monthly" | "date">("weekly");
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [chart, setChart] = useState<any>(null);
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Estados para cadastro de operador
+  const [opName, setOpName] = useState("");
+  const [opUser, setOpUser] = useState("");
+  const [opPass, setOpPass] = useState("");
+  const [opSuccess, setOpSuccess] = useState(false);
+  const [opLoading, setOpLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,16 +55,34 @@ export default function Reports() {
 
   useEffect(() => {
     setLoading(true);
+    const endpoint = period === "date" ? `/reports/date?date=${selectedDate}` : `/reports/${period}`;
     Promise.all([
-      api.get(`/reports/chart?period=${period}`),
-      api.get(`/reports/${period}`),
+      api.get(`/reports/chart?period=${period === "date" ? "monthly" : period}`), // Mantém o gráfico geral por enquanto ou ajusta
+      api.get(endpoint),
     ])
       .then(([chartRes, listRes]) => {
         setChart(chartRes.data);
         setRecords(listRes.data);
       })
       .finally(() => setLoading(false));
-  }, [period]);
+  }, [period, selectedDate]);
+
+  const handleRegisterOperator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOpLoading(true);
+    try {
+      await api.post("/users", { name: opName, username: opUser, password: opPass });
+      setOpName("");
+      setOpUser("");
+      setOpPass("");
+      setOpSuccess(true);
+      setTimeout(() => setOpSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Erro ao cadastrar operador");
+    } finally {
+       setOpLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -73,7 +99,7 @@ export default function Reports() {
 
         {/* Período */}
         <div className="ml-auto flex items-center gap-2 bg-slate-800 rounded-xl p-1">
-          {(["weekly", "monthly"] as const).map((p) => (
+          {(["weekly", "monthly", "date"] as const).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -81,10 +107,18 @@ export default function Reports() {
                 period === p ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
               }`}
             >
-              {p === "weekly" ? <CalendarDays className="w-4 h-4" /> : <CalendarRange className="w-4 h-4" />}
-              {PERIOD_LABEL[p]}
+              {p === "weekly" ? <CalendarDays className="w-4 h-4" /> : p === "monthly" ? <CalendarRange className="w-4 h-4" /> : <CalendarDays className="w-4 h-4 text-emerald-400" />}
+              {p === "weekly" ? "Semana" : p === "monthly" ? "Mês" : "Por Data"}
             </button>
           ))}
+          {period === "date" && (
+            <input 
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-700 text-white rounded-lg px-2 py-1 text-sm border-none focus:ring-2 focus:ring-blue-500 outline-none ml-2"
+            />
+          )}
         </div>
       </nav>
 
@@ -154,6 +188,7 @@ export default function Reports() {
                     <Line yAxisId="temp" dataKey="tempMax" name="Temp. Máx." stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
                     <Line yAxisId="temp" dataKey="tempMin" name="Temp. Mín." stroke="#38bdf8" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
                     <Line yAxisId="ph" type="monotone" dataKey="phMedio" name="pH Médio" stroke="#34d399" strokeWidth={2.5} dot={{ r: 4, fill: "#34d399" }} connectNulls />
+                    <Line yAxisId="ph" type="monotone" dataKey="cloroMedio" name="Cloro Médio (ppm)" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: "#10b981" }} connectNulls />
                     <ReferenceLine yAxisId="ph" y={7.0} stroke="#94a3b8" strokeDasharray="3 3" label={{ value: "pH 7.0", fill: "#94a3b8", fontSize: 10 }} />
                     <ReferenceLine yAxisId="ph" y={7.6} stroke="#94a3b8" strokeDasharray="3 3" label={{ value: "pH 7.6", fill: "#94a3b8", fontSize: 10 }} />
                   </LineChart>
@@ -262,6 +297,7 @@ export default function Reports() {
                       <th className="px-6 py-3 font-medium">Técnico</th>
                       <th className="px-6 py-3 font-medium text-center">Temperatura</th>
                       <th className="px-6 py-3 font-medium text-center">pH</th>
+                      <th className="px-6 py-3 font-medium text-center">Cloro</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -286,12 +322,71 @@ export default function Reports() {
                               <span className="text-slate-600 text-xs">—</span>
                             )}
                           </td>
+                          <td className="px-6 py-4 text-center">
+                            {r.cloro !== null ? (
+                              <span className={`font-bold ${
+                                r.cloro < 1.0 ? "text-yellow-400" : r.cloro <= 3.0 ? "text-emerald-400" : "text-red-400"
+                              }`}>{r.cloro.toFixed(1)} ppm</span>
+                            ) : (
+                              <span className="text-slate-600 text-xs">—</span>
+                            )}
+                          </td>
                         </tr>
                       ))
                     )}
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Cadastro de Operador */}
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <Users className="w-6 h-6 text-blue-500" />
+                <h3 className="text-xl font-bold text-white">Cadastrar Novo Operador</h3>
+              </div>
+              <form onSubmit={handleRegisterOperator} className="grid md:grid-cols-4 gap-4 items-end">
+                <div>
+                  <label className="block text-xs text-slate-500 uppercase font-bold mb-2">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={opName} 
+                    onChange={e => setOpName(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 outline-none"
+                    placeholder="João Silva"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 uppercase font-bold mb-2">Usuário (Login)</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={opUser} 
+                    onChange={e => setOpUser(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 outline-none"
+                    placeholder="joao.silva"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 uppercase font-bold mb-2">Senha</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={opPass} 
+                    onChange={e => setOpPass(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button 
+                  disabled={opLoading}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-all disabled:opacity-50"
+                >
+                  {opLoading ? "Cadastrando..." : "Cadastrar"}
+                </button>
+              </form>
+              {opSuccess && <p className="text-green-400 text-sm mt-4 font-medium">Operador cadastrado com sucesso!</p>}
             </div>
           </>
         )}

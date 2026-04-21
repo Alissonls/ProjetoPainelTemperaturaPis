@@ -100,13 +100,6 @@ export default function Panel() {
               animate={{ opacity: 1 }}
               className="mt-8 flex items-center gap-8 bg-slate-900/60 px-12 py-6 rounded-full border border-blue-500/20 backdrop-blur-xl"
             >
-              <div className="flex items-center gap-3">
-                <User className="w-8 h-8 text-slate-400" />
-                <span className="text-3xl text-slate-300">
-                  Responsável: <strong className="text-white ml-2">{data.user?.name}</strong>
-                </span>
-              </div>
-              <div className="w-2 h-2 bg-slate-700 rounded-full" />
               <div className="text-3xl text-slate-300">
                 Última atualização às <strong className="text-white ml-2">{format(new Date(data.createdAt), "HH:mm")}</strong>
               </div>
@@ -116,6 +109,16 @@ export default function Panel() {
                   <div className="flex items-center gap-3 text-3xl text-slate-300">
                     <Droplets className="w-7 h-7 text-cyan-400" />
                     pH: <strong className="text-cyan-400 ml-2">{data.ph?.toFixed(2)}</strong>
+                  </div>
+                </>
+              )}
+              {data.cloro !== null && data.cloro !== undefined && (
+                <>
+                  <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                  <div className="flex items-center gap-3 text-3xl text-slate-300">
+                    <Droplets className="w-7 h-7 text-emerald-400" />
+                    Cloro: <strong className="text-emerald-400 ml-2">{data.cloro?.toFixed(1)}</strong>
+                    <span className="text-xl text-slate-500 ml-1">ppm</span>
                   </div>
                 </>
               )}

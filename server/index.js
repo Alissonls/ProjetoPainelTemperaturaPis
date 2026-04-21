@@ -88,7 +88,7 @@ const requireAdmin = (request, reply) => {
 
 // ─── REGISTRAR (operador e admin) ──────────────────────
 fastify.post("/records", async (request, reply) => {
-  const { temperature, ph } = request.body ?? {};
+  const { temperature, ph, cloro } = request.body ?? {};
   if (temperature === undefined || temperature === null || temperature === "")
     return reply.status(400).send({ message: "Temperatura é obrigatória" });
 
@@ -96,6 +96,7 @@ fastify.post("/records", async (request, reply) => {
     data: {
       temperature: parseFloat(temperature),
       ph: ph !== undefined && ph !== "" ? parseFloat(ph) : null,
+      cloro: cloro !== undefined && cloro !== "" ? parseFloat(cloro) : null,
       userId: request.user.id,
     },
     include: { user: { select: { name: true } } },
@@ -136,6 +137,47 @@ fastify.get("/reports/monthly", async (request, reply) => {
   });
 });
 
+// ─── RELATÓRIO POR DATA (somente admin) ────────────────
+fastify.get("/reports/date", async (request, reply) => {
+  if (!requireAdmin(request, reply)) return;
+  const { date } = request.query;
+  if (!date) return reply.status(400).send({ message: "Data é obrigatória (YYYY-MM-DD)" });
+
+  const start = new Date(date + "T00:00:00");
+  const end = new Date(date + "T23:59:59");
+
+  return prisma.poolRecord.findMany({
+    where: {
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+    },
+    include: { user: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+});
+
+// ─── CADASTRAR OPERADOR (somente admin) ────────────────
+fastify.post("/users", async (request, reply) => {
+  if (!requireAdmin(request, reply)) return;
+  const { name, username, password, role = "operator" } = request.body ?? {};
+
+  if (!name || !username || !password)
+    return reply.status(400).send({ message: "Nome, usuário e senha são obrigatórios" });
+
+  const exists = await prisma.user.findUnique({ where: { username } });
+  if (exists) return reply.status(400).send({ message: "Usuário já existe" });
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = await prisma.user.create({
+    data: { name, username, password: hashedPassword, role },
+  });
+
+  const { password: _, ...userWithoutPassword } = newUser;
+  return userWithoutPassword;
+});
+
 // ─── DADOS DOS GRÁFICOS (somente admin) ────────────────
 fastify.get("/reports/chart", async (request, reply) => {
   if (!requireAdmin(request, reply)) return;
@@ -155,9 +197,10 @@ fastify.get("/reports/chart", async (request, reply) => {
   const byDay = {};
   for (const r of records) {
     const day = format(new Date(r.createdAt), "dd/MM");
-    if (!byDay[day]) byDay[day] = { temps: [], phs: [], technicians: {} };
+    if (!byDay[day]) byDay[day] = { temps: [], phs: [], cloros: [], technicians: {} };
     byDay[day].temps.push(r.temperature);
     if (r.ph !== null) byDay[day].phs.push(r.ph);
+    if (r.cloro !== null) byDay[day].cloros.push(r.cloro);
     byDay[day].technicians[r.user.name] = (byDay[day].technicians[r.user.name] || 0) + 1;
   }
 
@@ -167,6 +210,7 @@ fastify.get("/reports/chart", async (request, reply) => {
     tempMax: Math.max(...val.temps),
     tempMin: Math.min(...val.temps),
     phMedio: val.phs.length ? parseFloat((val.phs.reduce((a, b) => a + b, 0) / val.phs.length).toFixed(2)) : null,
+    cloroMedio: val.cloros.length ? parseFloat((val.cloros.reduce((a, b) => a + b, 0) / val.cloros.length).toFixed(2)) : null,
     totalRegistros: val.temps.length,
   }));
 

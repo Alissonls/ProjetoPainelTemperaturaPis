@@ -20,6 +20,7 @@ model PoolRecord {
   id          String   @id @default(uuid())
   temperature Float
   ph          Float?
+  cloro       Float?
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
   userId      String

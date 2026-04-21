@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale";
 export default function Dashboard() {
   const [temperature, setTemperature] = useState("");
   const [ph, setPh] = useState("");
+  const [cloro, setCloro] = useState("");
   const [latest, setLatest] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -32,9 +33,11 @@ export default function Dashboard() {
       await api.post("/records", {
         temperature,
         ph: ph || undefined,
+        cloro: cloro || undefined,
       });
       setTemperature("");
       setPh("");
+      setCloro("");
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       fetchLatest();
@@ -140,6 +143,24 @@ export default function Dashboard() {
                 />
               </div>
 
+              {/* Cloro */}
+              <div>
+                <label className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+                  <Droplets className="w-4 h-4 text-emerald-400" />
+                  Nível de Cloro (ppm)
+                  <span className="text-slate-600 text-xs">(ideal: 1.0 – 3.0)</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  className="w-full bg-slate-800 border-2 border-slate-700 rounded-xl px-5 py-4 text-3xl font-bold text-center text-emerald-400 focus:border-emerald-500/70 transition-all outline-none"
+                  placeholder="2.0"
+                  value={cloro}
+                  onChange={(e) => setCloro(e.target.value)}
+                />
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -173,6 +194,14 @@ export default function Dashboard() {
                       <span className={`text-5xl font-black italic ${
                         latest.ph < 7.0 ? "text-red-400" : latest.ph <= 7.6 ? "text-green-400" : "text-yellow-400"
                       }`}>{latest.ph.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {latest.cloro !== null && latest.cloro !== undefined && (
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Cloro</p>
+                      <span className={`text-5xl font-black italic ${
+                        latest.cloro < 1.0 ? "text-yellow-400" : latest.cloro <= 3.0 ? "text-emerald-400" : "text-red-400"
+                      }`}>{latest.cloro.toFixed(1)}</span>
                     </div>
                   )}
                 </div>
